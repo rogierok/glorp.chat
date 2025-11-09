@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glorp!</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button id="newChatBtn" class="new-chat-btn">
+                <img src="assets/plus.svg" alt="+" class="btn-icon">
+            </button>
+        </div>
+        <div class="chat-list" id="chatList">
+            <!-- Chat history -->
+        </div>
+        <div class="sidebar-footer">
+            <a href="https://x.com/okgier" target="_blank" class="disclaimer">
+                Glorp is NEVER wrong.
+            </a>
+        </div>
+    </div>
+
+    <!-- Sidebar Toggle -->
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <img src="assets/list.svg" alt="Menu" class="btn-icon">
+    </button>
+
+    <div class="chat-container">
+        <!-- Mode Selector -->
+        <div class="mode-selector">
+            <select id="modeSelect" class="mode-dropdown">
+                <option value="normal">Glorp</option>
+                <option value="thinking">Glorp Thinking</option>
+            </select>
+        </div>
+        
+        <div class="messages-area" id="messagesArea">
+            <!-- Empty state -->
+            <div class="empty-state" id="emptyState">
+                <h1 class="empty-title">Glorp floorp bleepunk?</h1>
+            </div>
+        </div>
+
+        <div class="input-container" id="inputContainer">
+            <div class="input-wrapper">
+                <textarea 
+                    id="messageInput" 
+                    placeholder="Glorp..." 
+                    rows="1"
+                ></textarea>
+                <button id="sendBtn">
+                    <img src="assets/paper-plane-tilt.svg" alt="Send" class="btn-icon" id="sendIcon">
+                    <img src="assets/stop-circle.svg" alt="Stop" class="btn-icon hidden" id="stopIcon">
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="storage.js"></script>
+    <script src="ai.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
