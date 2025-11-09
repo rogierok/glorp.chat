@@ -590,7 +590,9 @@ sidebarToggle.addEventListener('click', () => {
     sidebar.classList.toggle('open');
 });
 
-newChatBtn.addEventListener('click', async () => {
+newChatBtn.addEventListener('click', async (e) => {
+    e.preventDefault(); // Prevent any default button behavior
+    
     // If Glorp is typing, save partial response before switching
     if (isGlorpTyping) {
         shouldStopTyping = true;
