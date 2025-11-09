@@ -623,7 +623,7 @@ body {
     
     .input-container {
         padding: 10px 12px;
-        padding-bottom: 65px;
+        padding-bottom: 80px;
         max-width: 100%;
         box-sizing: border-box;
     }
@@ -658,4 +658,5 @@ body {
         font-size: 20px;
     }
 }
+
 
