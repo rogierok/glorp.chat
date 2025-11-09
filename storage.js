@@ -1,8 +1,9 @@
 // IndexedDB Storage for Glorp Chat
 
 const DB_NAME = 'GlorpChatDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // meh
 const CHAT_STORE = 'chats';
+const SETTINGS_STORE = 'settings';
 
 let db = null;
 
@@ -26,6 +27,11 @@ async function initDB() {
             if (!database.objectStoreNames.contains(CHAT_STORE)) {
                 const chatStore = database.createObjectStore(CHAT_STORE, { keyPath: 'id' });
                 chatStore.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+            
+            // Create settings store if it doesn't exist
+            if (!database.objectStoreNames.contains(SETTINGS_STORE)) {
+                database.createObjectStore(SETTINGS_STORE, { keyPath: 'key' });
             }
         };
     });
@@ -148,4 +154,32 @@ function getCurrentChatId() {
  */
 function setCurrentChatId(chatId) {
     localStorage.setItem('currentChatId', chatId);
+}
+
+/**
+ * Save theme preference to IndexedDB
+ */
+async function saveThemePreference(theme) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([SETTINGS_STORE], 'readwrite');
+        const store = transaction.objectStore(SETTINGS_STORE);
+        const request = store.put({ key: 'theme', value: theme });
+        
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
+/**
+ * Get theme preference from IndexedDB
+ */
+async function getThemePreference() {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([SETTINGS_STORE], 'readonly');
+        const store = transaction.objectStore(SETTINGS_STORE);
+        const request = store.get('theme');
+        
+        request.onsuccess = () => resolve(request.result ? request.result.value : null);
+        request.onerror = () => reject(request.error);
+    });
 }

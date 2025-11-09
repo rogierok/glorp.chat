@@ -22,6 +22,7 @@ const STYLE_CONFIG = {
     'list': { requireCodeblock: false, codeblockSize: null, wordCountMultiplier: 0.7, historyMultiplier: 0, formatType: 'list' },
     'steps': { requireCodeblock: false, codeblockSize: null, wordCountMultiplier: 0.8, historyMultiplier: 0, formatType: 'steps' },
     'points': { requireCodeblock: false, codeblockSize: null, wordCountMultiplier: 0.7, historyMultiplier: 0, formatType: 'list' },
+    'how': { requireCodeblock: false, codeblockSize: null, wordCountMultiplier: 0.8, historyMultiplier: 0, formatType: 'steps' },
     
     // Thank you keywords (short responses with happy endings)
     'thanks': { requireCodeblock: false, codeblockSize: null, wordCountMultiplier: 0.2, historyMultiplier: 0, formatType: 'thanks', happyMultiplier: 2.0 },
@@ -359,7 +360,7 @@ function formatWordsAsText(words, formatType, isHappyEnding = false) {
             formattedText += beforeWords.join(' ') + '.';
         }
         
-        // Add line break before list
+        // Add TWO line breaks before list (one enter)
         formattedText += '\n\n';
         
         // List items
@@ -369,11 +370,11 @@ function formatWordsAsText(words, formatType, isHappyEnding = false) {
         for (let i = 0; i < itemCount; i++) {
             const itemWords = listWords.slice(i * wordsPerItem, (i + 1) * wordsPerItem);
             if (itemWords.length > 0) {
-                formattedText += '• ' + itemWords.join(' ') + '\n';
+                formattedText += '  • ' + itemWords.join(' ') + '\n';
             }
         }
         
-        // Add line break after list
+        // Add TWO line breaks after list (one enter)
         formattedText += '\n';
         
         // Text after list
@@ -400,7 +401,7 @@ function formatWordsAsText(words, formatType, isHappyEnding = false) {
             formattedText += beforeWords.join(' ') + '.';
         }
         
-        // Add line break before steps
+        // Add TWO line breaks before steps (one enter)
         formattedText += '\n\n';
         
         // Steps
@@ -410,11 +411,11 @@ function formatWordsAsText(words, formatType, isHappyEnding = false) {
         for (let i = 0; i < stepCount; i++) {
             const itemWords = stepWords.slice(i * wordsPerStep, (i + 1) * wordsPerStep);
             if (itemWords.length > 0) {
-                formattedText += `${i + 1}. ` + itemWords.join(' ') + '\n';
+                formattedText += `  ${i + 1}. ` + itemWords.join(' ') + '\n';
             }
         }
         
-        // Add line break after steps
+        // Add TWO line breaks after steps (one enter)
         formattedText += '\n';
         
         // Text after steps

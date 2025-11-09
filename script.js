@@ -11,6 +11,7 @@ const sidebarOverlay = document.getElementById('sidebarOverlay');
 const newChatBtn = document.getElementById('newChatBtn');
 const chatList = document.getElementById('chatList');
 const modeSelect = document.getElementById('modeSelect');
+const themeToggle = document.getElementById('themeToggle');
 
 let typingTimeout;
 let isGlorpTyping = false;
@@ -20,10 +21,71 @@ let currentResponseChatId = null; // Track which chat the current response belon
 let glorpMode = 'normal'; // Track current mode: 'normal' or 'thinking'
 
 /**
+ * Get system theme preference
+ */
+function getSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+/**
+ * Initialize theme from IndexedDB or system preference
+ */
+async function initTheme() {
+    const savedTheme = await getThemePreference();
+    const theme = savedTheme || getSystemTheme();
+    
+    if (theme === 'dark') {
+        document.body.classList.add('dark-mode');
+    }
+    
+    updateThemeIcon();
+}
+
+/**
+ * Update theme icon
+ */
+function updateThemeIcon() {
+    const icon = themeToggle.querySelector('.theme-icon');
+    const isDark = document.body.classList.contains('dark-mode');
+    icon.src = isDark ? 'assets/sun-dim.svg' : 'assets/moon.svg';
+    icon.alt = isDark ? 'Light mode' : 'Dark mode';
+}
+
+/**
+ * Toggle theme
+ */
+async function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    await saveThemePreference(isDark ? 'dark' : 'light');
+    updateThemeIcon();
+}
+
+/**
  * Initialize app
  */
 async function initApp() {
     await initDB();
+    
+    // Initialize theme after DB is ready
+    await initTheme();
+    
+    // Check if there's a shared chat in the URL
+    const sharedChat = await loadSharedChat();
+    if (sharedChat) {
+        // Create a new chat with the shared messages
+        currentChat = await createNewChat();
+        currentChat.messages = sharedChat.messages;
+        currentChat.title = sharedChat.title || 'Shared Glorp';
+        await saveChat(currentChat);
+        setCurrentChatId(currentChat.id);
+        await loadChatMessages(currentChat);
+        await updateChatList();
+        updateEmptyState();
+        // Clear the URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+    }
     
     // Check if there's a current chat ID
     let chatId = getCurrentChatId();
@@ -71,14 +133,18 @@ async function loadChatMessages(chat) {
     messages.forEach(msg => msg.remove());
     
     // Add all messages from chat
-    for (const msg of chat.messages) {
-        const messageDiv = createMessageElement(msg.content, msg.role === 'user');
+    for (let i = 0; i < chat.messages.length; i++) {
+        const msg = chat.messages[i];
+        const messageDiv = createMessageElement(msg.content, msg.role === 'user', i);
         
-        if (msg.role === 'assistant' && msg.formattedContent) {
-            // For assistant messages, render the formatted content
+        if (msg.role === 'assistant') {
             const content = messageDiv.querySelector('.content');
-            if (content) {
+            if (content && msg.formattedContent) {
+                // For assistant messages with formatted content, render it
                 renderFormattedContent(content, msg.formattedContent, msg.formatType);
+            } else if (content && msg.content) {
+                // Fallback: render plain content
+                content.textContent = msg.content;
             }
         }
         
@@ -94,10 +160,10 @@ async function loadChatMessages(chat) {
  */
 function renderFormattedContent(container, response, formatType) {
     if (formatType === 'list' || formatType === 'steps') {
-        const lines = response.text.split('\n').filter(line => line.trim());
+        const lines = response.text.split('\n');
         lines.forEach(line => {
             const lineElement = document.createElement('div');
-            lineElement.textContent = line;
+            lineElement.textContent = line || '\u00A0'; // Use non-breaking space for empty lines
             container.appendChild(lineElement);
         });
     } else {
@@ -254,12 +320,60 @@ sendBtn.addEventListener('click', sendMessage);
 /**
  * Create a message element
  */
-function createMessageElement(text, isUser = false) {
+function createMessageElement(text, isUser = false, messageIndex = null) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
     
+    if (messageIndex !== null) {
+        messageDiv.setAttribute('data-message-index', messageIndex);
+    }
+    
+    // Add click handler for mobile to show actions
+    messageDiv.addEventListener('click', function(e) {
+        // Don't toggle if clicking a button
+        if (e.target.closest('button')) return;
+        
+        // Remove actions-visible from all other messages
+        document.querySelectorAll('.message.actions-visible').forEach(msg => {
+            if (msg !== messageDiv) {
+                msg.classList.remove('actions-visible');
+            }
+        });
+        
+        // Toggle for this message
+        messageDiv.classList.toggle('actions-visible');
+    });
+    
     if (isUser) {
-        messageDiv.textContent = text;
+        // Create text node for user message (don't use textContent as it will overwrite buttons)
+        const textNode = document.createTextNode(text);
+        messageDiv.appendChild(textNode);
+        
+        // Add action buttons for user messages
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'message-actions';
+        
+        const editBtn = document.createElement('button');
+        editBtn.className = 'message-action-btn';
+        editBtn.setAttribute('aria-label', 'Edit message');
+        editBtn.innerHTML = '<img src="assets/pencil.svg" alt="Edit">';
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            handleEditMessage(messageIndex);
+        };
+        
+        const resendBtn = document.createElement('button');
+        resendBtn.className = 'message-action-btn';
+        resendBtn.setAttribute('aria-label', 'Resend message');
+        resendBtn.innerHTML = '<img src="assets/arrow-counter-clockwise.svg" alt="Resend">';
+        resendBtn.onclick = (e) => {
+            e.stopPropagation();
+            handleResendMessage(messageIndex);
+        };
+        
+        actionsDiv.appendChild(editBtn);
+        actionsDiv.appendChild(resendBtn);
+        messageDiv.appendChild(actionsDiv);
     } else {
         // Assistant message with avatar
         const avatar = document.createElement('div');
@@ -275,6 +389,19 @@ function createMessageElement(text, isUser = false) {
         
         messageDiv.appendChild(avatar);
         messageDiv.appendChild(content);
+        
+        // Add share button for assistant messages
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'message-actions';
+        
+        const shareBtn = document.createElement('button');
+        shareBtn.className = 'message-action-btn';
+        shareBtn.setAttribute('aria-label', 'Share conversation');
+        shareBtn.innerHTML = '<img src="assets/share-network.svg" alt="Share">';
+        shareBtn.onclick = () => handleShareMessage(messageIndex);
+        
+        actionsDiv.appendChild(shareBtn);
+        messageDiv.appendChild(actionsDiv);
     }
     
     return messageDiv;
@@ -299,15 +426,18 @@ function createCodeblock(code) {
     
     const copyBtn = document.createElement('button');
     copyBtn.className = 'copy-button';
+    copyBtn.setAttribute('aria-label', 'Copy code to clipboard');
     
     const copyIcon = document.createElement('img');
     copyIcon.src = 'assets/clipboard.svg';
+    copyIcon.alt = 'Copy';
     copyIcon.className = 'copy-icon';
     copyBtn.appendChild(copyIcon);
     
     copyBtn.onclick = function() {
         // Show loading
         copyIcon.src = 'assets/circle.svg';
+        copyIcon.alt = 'Copying...';
         copyIcon.classList.add('spinning');
         
         // Strip HTML tags for copying
@@ -318,13 +448,17 @@ function createCodeblock(code) {
         navigator.clipboard.writeText(plainCode).then(() => {
             // Show check
             copyIcon.src = 'assets/check.svg';
+            copyIcon.alt = 'Copied';
             copyIcon.classList.remove('spinning');
             copyBtn.classList.add('copied');
+            copyBtn.setAttribute('aria-label', 'Code copied to clipboard');
             
             setTimeout(() => {
                 // Back to clipboard
                 copyIcon.src = 'assets/clipboard.svg';
+                copyIcon.alt = 'Copy';
                 copyBtn.classList.remove('copied');
+                copyBtn.setAttribute('aria-label', 'Copy code to clipboard');
             }, 2000);
         });
     };
@@ -352,7 +486,7 @@ function createCodeblock(code) {
 async function animateText(container, text, formatType) {
     if (formatType === 'list' || formatType === 'steps') {
         // Animate line by line for lists and steps
-        const lines = text.split('\n').filter(line => line.trim());
+        const lines = text.split('\n');
         const delays = getTypingDelays(text, formatType);
         
         for (let i = 0; i < lines.length; i++) {
@@ -361,7 +495,7 @@ async function animateText(container, text, formatType) {
             await new Promise(resolve => setTimeout(resolve, delays[i]));
             
             const lineElement = document.createElement('div');
-            lineElement.textContent = lines[i];
+            lineElement.textContent = lines[i] || '\u00A0'; // Use non-breaking space for empty lines
             lineElement.style.opacity = '0';
             lineElement.style.animation = 'fadeIn 0.2s ease-in forwards';
             container.appendChild(lineElement);
@@ -415,7 +549,10 @@ async function displayGlorpResponse(response) {
     sendIcon.classList.add('hidden');
     stopIcon.classList.remove('hidden');
     
-    const messageDiv = createMessageElement('', false);
+    // Get the message index for the new assistant message (will be added after current messages)
+    const messageIndex = currentChat.messages.length;
+    
+    const messageDiv = createMessageElement('', false, messageIndex);
     messagesArea.appendChild(messageDiv);
     
     const content = messageDiv.querySelector('.content');
@@ -509,6 +646,211 @@ async function displayGlorpResponse(response) {
 }
 
 /**
+ * Handle editing a user message
+ */
+async function handleEditMessage(messageIndex) {
+    if (messageIndex === null || messageIndex === undefined) return;
+    
+    const message = currentChat.messages[messageIndex];
+    if (!message || message.role !== 'user') return;
+    
+    // Stop typing if Glorp is currently typing
+    if (isGlorpTyping) {
+        shouldStopTyping = true;
+        isGlorpTyping = false;
+        sendIcon.classList.remove('hidden');
+        stopIcon.classList.add('hidden');
+        
+        // Wait a moment for typing to stop
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // Delete this message and all messages after it first
+    currentChat.messages = currentChat.messages.slice(0, messageIndex);
+    await saveChat(currentChat);
+    
+    // Reload the UI
+    await loadChatMessages(currentChat);
+    
+    // Update empty state based on remaining messages
+    if (currentChat.messages.length === 0) {
+        emptyState.classList.remove('hidden');
+        inputContainer.classList.add('centered');
+    } else {
+        emptyState.classList.add('hidden');
+        inputContainer.classList.remove('centered');
+    }
+    
+    // Put the message content back in the input
+    messageInput.value = message.content;
+    resizeTextarea();
+    messageInput.focus();
+}
+
+/**
+ * Handle resending a user message
+ */
+async function handleResendMessage(messageIndex) {
+    if (messageIndex === null || messageIndex === undefined) return;
+    
+    const message = currentChat.messages[messageIndex];
+    if (!message || message.role !== 'user') return;
+    
+    // Stop typing if Glorp is currently typing
+    if (isGlorpTyping) {
+        shouldStopTyping = true;
+        isGlorpTyping = false;
+        sendIcon.classList.remove('hidden');
+        stopIcon.classList.add('hidden');
+        
+        // Wait a moment for typing to stop
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // Delete this message and all messages after it
+    currentChat.messages = currentChat.messages.slice(0, messageIndex);
+    await saveChat(currentChat);
+    
+    // Reload the UI
+    await loadChatMessages(currentChat);
+    
+    // Send the message again
+    const messageText = message.content;
+    
+    // Track which chat this response belongs to
+    currentResponseChatId = currentChat.id;
+    
+    // Hide empty state since we're sending a message
+    emptyState.classList.add('hidden');
+    inputContainer.classList.remove('centered');
+    
+    // Save user message to chat and update currentChat reference
+    currentChat = await addMessageToChat(currentChat.id, {
+        role: 'user',
+        content: messageText,
+        timestamp: Date.now()
+    });
+    
+    // Display user message
+    const userMessage = createMessageElement(messageText, true, currentChat.messages.length - 1);
+    messagesArea.appendChild(userMessage);
+    
+    // Auto-scroll to bottom
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+    
+    // Update chat list
+    await updateChatList();
+    
+    // Small delay before Glorp responds
+    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
+    
+    // Generate and display Glorp response
+    const response = generateGlorpResponse(messageText);
+    await displayGlorpResponse(response);
+    
+    // Only save if we're still in the same chat
+    if (currentResponseChatId === currentChat.id) {
+        currentChat = await addMessageToChat(currentChat.id, {
+            role: 'assistant',
+            content: response.text,
+            formattedContent: response,
+            formatType: response.formatType,
+            timestamp: Date.now()
+        });
+    }
+    
+    currentResponseChatId = null;
+}
+
+/**
+ * Handle sharing conversation up to a specific message
+ */
+async function handleShareMessage(messageIndex) {
+    if (messageIndex === null || messageIndex === undefined) return;
+    
+    // Get all messages up to and including this one
+    const messagesToShare = currentChat.messages.slice(0, messageIndex + 1);
+    
+    // Create share object with same structure as IndexedDB messages
+    const shareData = {
+        title: currentChat.title,
+        messages: messagesToShare.map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            formattedContent: msg.formattedContent,
+            formatType: msg.formatType,
+            timestamp: msg.timestamp
+        }))
+    };
+    
+    // Encode to URL-safe base64
+    const jsonString = JSON.stringify(shareData);
+    const base64 = btoa(jsonString)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+    
+    // Create shareable URL
+    const shareUrl = `${window.location.origin}${window.location.pathname}?share=${base64}`;
+    
+    // Copy to clipboard
+    try {
+        await navigator.clipboard.writeText(shareUrl);
+        
+        // Show feedback
+        const shareBtn = messagesArea.querySelector(`[data-message-index="${messageIndex}"] .message-action-btn[aria-label="Share conversation"]`);
+        if (shareBtn) {
+            const originalLabel = shareBtn.getAttribute('aria-label');
+            shareBtn.setAttribute('aria-label', 'Link copied!');
+            const img = shareBtn.querySelector('img');
+            const originalSrc = img.src;
+            img.src = 'assets/check.svg';
+            
+            setTimeout(() => {
+                shareBtn.setAttribute('aria-label', originalLabel);
+                img.src = originalSrc;
+            }, 2000);
+        }
+    } catch (err) {
+        console.error('Failed to copy share link:', err);
+    }
+}
+
+/**
+ * Load shared chat from URL
+ */
+async function loadSharedChat() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const shareParam = urlParams.get('share');
+    
+    if (!shareParam) return null;
+    
+    try {
+        // Decode from URL-safe base64
+        let base64 = shareParam
+            .replace(/-/g, '+')
+            .replace(/_/g, '/');
+        
+        // Add padding if needed
+        while (base64.length % 4) {
+            base64 += '=';
+        }
+        
+        const jsonString = atob(base64);
+        const shareData = JSON.parse(jsonString);
+        
+        // Return the data in the same format as it was saved
+        return {
+            title: shareData.title,
+            messages: shareData.messages
+        };
+    } catch (err) {
+        console.error('Failed to load shared chat:', err);
+        return null;
+    }
+}
+
+/**
  * Send user message and get Glorp response
  */
 async function sendMessage() {
@@ -542,15 +884,15 @@ async function sendMessage() {
             }, 500);
         }
         
-        // Save user message to chat
-        await addMessageToChat(currentChat.id, {
+        // Save user message to chat and update currentChat reference
+        currentChat = await addMessageToChat(currentChat.id, {
             role: 'user',
             content: value,
             timestamp: Date.now()
         });
         
-        // Display user message
-        const userMessage = createMessageElement(value, true);
+        // Display user message - now currentChat.messages is up to date
+        const userMessage = createMessageElement(value, true, currentChat.messages.length - 1);
         messagesArea.appendChild(userMessage);
         
         // Clear input
@@ -572,8 +914,8 @@ async function sendMessage() {
         
         // Only save if we're still in the same chat
         if (currentResponseChatId === currentChat.id) {
-            // Save assistant message to chat
-            await addMessageToChat(currentChat.id, {
+            // Save assistant message to chat and update currentChat reference
+            currentChat = await addMessageToChat(currentChat.id, {
                 role: 'assistant',
                 content: response.text,
                 formattedContent: response,
@@ -646,6 +988,17 @@ newChatBtn.addEventListener('click', async (e) => {
 
 modeSelect.addEventListener('change', (e) => {
     glorpMode = e.target.value;
+});
+
+themeToggle.addEventListener('click', toggleTheme);
+
+// Close message actions when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.message')) {
+        document.querySelectorAll('.message.actions-visible').forEach(msg => {
+            msg.classList.remove('actions-visible');
+        });
+    }
 });
 
 document.addEventListener('userTyping', (e) => {

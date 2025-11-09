@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Glorp Chat - An AI-powered nonsense generator that creates gloriously absurd conversations in pure Glorp language!">
     <title>Glorp!</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -32,15 +33,19 @@
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
+    <!-- Mode Selector and Theme Toggle -->
+    <div class="top-controls">
+        <label for="modeSelect" class="visually-hidden">Chat Mode</label>
+        <select id="modeSelect" class="mode-dropdown">
+            <option value="normal">Glorp</option>
+            <option value="thinking">Glorp Thinking</option>
+        </select>
+        <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
+            <img src="assets/moon.svg" alt="Dark mode" class="theme-icon">
+        </button>
+    </div>
+
     <div class="chat-container">
-        <!-- Mode Selector -->
-        <div class="mode-selector">
-            <select id="modeSelect" class="mode-dropdown">
-                <option value="normal">Glorp</option>
-                <option value="thinking">Glorp Thinking</option>
-            </select>
-        </div>
-        
         <div class="messages-area" id="messagesArea">
             <!-- Empty state -->
             <div class="empty-state" id="emptyState">
