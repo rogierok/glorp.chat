@@ -600,10 +600,12 @@ body {
     
     .messages-area {
         padding: 12px;
+        padding-bottom: 20px;
     }
     
     .input-container {
         padding: 10px 12px;
+        padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
         max-width: 100%;
         box-sizing: border-box;
     }
