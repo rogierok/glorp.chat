@@ -1,7 +1,7 @@
 // IndexedDB Storage for Glorp Chat
 
-const DB_NAME = 'GlorpChatDB';
-const DB_VERSION = 2; // meh
+const DB_NAME = 'Glorp';
+const DB_VERSION = 1; // meh
 const CHAT_STORE = 'chats';
 const SETTINGS_STORE = 'settings';
 
