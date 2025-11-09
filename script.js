@@ -7,6 +7,7 @@ const inputContainer = document.getElementById('inputContainer');
 const emptyState = document.getElementById('emptyState');
 const sidebar = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
 const newChatBtn = document.getElementById('newChatBtn');
 const chatList = document.getElementById('chatList');
 const modeSelect = document.getElementById('modeSelect');
@@ -588,6 +589,10 @@ async function sendMessage() {
 // Event Listeners
 sidebarToggle.addEventListener('click', () => {
     sidebar.classList.toggle('open');
+});
+
+sidebarOverlay.addEventListener('click', () => {
+    sidebar.classList.remove('open');
 });
 
 newChatBtn.addEventListener('click', async (e) => {

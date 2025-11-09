@@ -186,6 +186,24 @@ body {
     z-index: 101;
 }
 
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 98;
+}
+
+.sidebar.open ~ .sidebar-overlay {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .chat-container {
     display: flex;
     flex-direction: column;
@@ -600,12 +618,12 @@ body {
     
     .messages-area {
         padding: 12px;
-        padding-bottom: 20px;
+        padding-bottom: 80px;
     }
     
     .input-container {
         padding: 10px 12px;
-        padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
+        padding-bottom: 55px;
         max-width: 100%;
         box-sizing: border-box;
     }
