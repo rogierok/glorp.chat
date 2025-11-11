@@ -1,4 +1,4 @@
-### glorp.chat -> [Try It!](https://glorp.chat/)
+### glorp.chat -> [Try It!](https://glorp.chat/) <img width="20" height="20" alt="glorp" src="https://github.com/user-attachments/assets/0da67a20-acbf-4099-9dee-298316750d7b" /> 
 
 Glorp that is a FULLY browser based, low training time SLM (Small Language Model), a highly advanced chatbot running databaseless.
 
