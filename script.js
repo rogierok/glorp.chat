@@ -17,7 +17,7 @@ let typingTimeout;
 let isGlorpTyping = false;
 let currentChat = null;
 let shouldStopTyping = false;
-let currentResponseChatId = null; // Track which chat the current response belongs to
+let currentResponseChatId = null; // Track which chat the current response belongs to, fixes issue when switching chats while Glorp is typing.. remove in future TODO!
 let glorpMode = 'normal'; // Track current mode: 'normal' or 'thinking'
 
 /**
@@ -47,7 +47,7 @@ async function initTheme() {
 function updateThemeIcon() {
     const icon = themeToggle.querySelector('.theme-icon');
     const isDark = document.body.classList.contains('dark-mode');
-    icon.src = isDark ? 'assets/sun-dim.svg' : 'assets/moon.svg';
+    icon.src = isDark ? 'assets/sun.svg' : 'assets/moon.svg';
     icon.alt = isDark ? 'Light mode' : 'Dark mode';
 }
 
@@ -242,10 +242,7 @@ async function handleDeleteChat(chatId) {
         updateEmptyState();
     }
     
-    // Delete the chat
     await deleteChat(chatId);
-    
-    // Update the list
     await updateChatList();
 }
 
@@ -253,7 +250,6 @@ async function handleDeleteChat(chatId) {
  * Switch to a different chat
  */
 async function switchChat(chatId) {
-    // Stop typing if Glorp is currently typing
     if (isGlorpTyping) {
         shouldStopTyping = true;
         isGlorpTyping = false;
@@ -263,7 +259,7 @@ async function switchChat(chatId) {
         stopIcon.classList.add('hidden');
     }
     
-    // Reset mode to normal
+    // Reset mode to normal when creating or switching chat, don't like this being site wide, makes it look as if its expensive lol
     glorpMode = 'normal';
     modeSelect.value = 'normal';
     
@@ -328,24 +324,20 @@ function createMessageElement(text, isUser = false, messageIndex = null) {
         messageDiv.setAttribute('data-message-index', messageIndex);
     }
     
-    // Add click handler for mobile to show actions
     messageDiv.addEventListener('click', function(e) {
-        // Don't toggle if clicking a button
         if (e.target.closest('button')) return;
         
-        // Remove actions-visible from all other messages
         document.querySelectorAll('.message.actions-visible').forEach(msg => {
             if (msg !== messageDiv) {
                 msg.classList.remove('actions-visible');
             }
         });
         
-        // Toggle for this message
         messageDiv.classList.toggle('actions-visible');
     });
     
     if (isUser) {
-        // Create text node for user message (don't use textContent as it will overwrite buttons)
+        // Create text node for user message
         const textNode = document.createTextNode(text);
         messageDiv.appendChild(textNode);
         
@@ -365,7 +357,7 @@ function createMessageElement(text, isUser = false, messageIndex = null) {
         const resendBtn = document.createElement('button');
         resendBtn.className = 'message-action-btn';
         resendBtn.setAttribute('aria-label', 'Resend message');
-        resendBtn.innerHTML = '<img src="assets/arrow-counter-clockwise.svg" alt="Resend">';
+        resendBtn.innerHTML = '<img src="assets/arrow.svg" alt="Resend">';
         resendBtn.onclick = (e) => {
             e.stopPropagation();
             handleResendMessage(messageIndex);
@@ -397,7 +389,7 @@ function createMessageElement(text, isUser = false, messageIndex = null) {
         const shareBtn = document.createElement('button');
         shareBtn.className = 'message-action-btn';
         shareBtn.setAttribute('aria-label', 'Share conversation');
-        shareBtn.innerHTML = '<img src="assets/share-network.svg" alt="Share">';
+        shareBtn.innerHTML = '<img src="assets/share.svg" alt="Share">';
         shareBtn.onclick = () => handleShareMessage(messageIndex);
         
         actionsDiv.appendChild(shareBtn);
@@ -435,7 +427,7 @@ function createCodeblock(code) {
     copyBtn.appendChild(copyIcon);
     
     copyBtn.onclick = function() {
-        // Show loading
+        // Show loading, TODO add some delay to animation, because you never really see this
         copyIcon.src = 'assets/circle.svg';
         copyIcon.alt = 'Copying...';
         copyIcon.classList.add('spinning');
@@ -446,7 +438,6 @@ function createCodeblock(code) {
         const plainCode = tempDiv.textContent || tempDiv.innerText || '';
         
         navigator.clipboard.writeText(plainCode).then(() => {
-            // Show check
             copyIcon.src = 'assets/check.svg';
             copyIcon.alt = 'Copied';
             copyIcon.classList.remove('spinning');
@@ -454,7 +445,6 @@ function createCodeblock(code) {
             copyBtn.setAttribute('aria-label', 'Code copied to clipboard');
             
             setTimeout(() => {
-                // Back to clipboard
                 copyIcon.src = 'assets/clipboard.svg';
                 copyIcon.alt = 'Copy';
                 copyBtn.classList.remove('copied');
@@ -470,7 +460,7 @@ function createCodeblock(code) {
     content.className = 'codeblock-content';
     
     const pre = document.createElement('pre');
-    pre.innerHTML = code; // Use innerHTML to render syntax highlighting spans
+    pre.innerHTML = code;
     
     content.appendChild(pre);
     codeblock.appendChild(header);
@@ -563,83 +553,68 @@ async function displayGlorpResponse(response) {
         displayText = 'Hmm.. ' + displayText;
     }
     
-    // Handle different codeblock positions
+    // Handle different codeblock positions (start, middle, end, none)
     if (response.hasCodeblock && response.codeblockPosition === 'start') {
-        // Codeblock first
         const codeblock = createCodeblock(response.codeblock);
         content.appendChild(codeblock);
         
         if (!shouldStopTyping) {
-            // Add small pause after codeblock
             await new Promise(resolve => setTimeout(resolve, 200));
             
-            // Then text
             await animateText(content, displayText, response.formatType);
         }
         
     } else if (response.hasCodeblock && response.codeblockPosition === 'middle') {
-        // Split text in half
         const textParts = displayText.split('\n\n');
         const midPoint = Math.floor(textParts.length / 2);
         
         const beforeText = textParts.slice(0, midPoint).join('\n\n');
         const afterText = textParts.slice(midPoint).join('\n\n');
         
-        // Text before
         if (beforeText && !shouldStopTyping) {
             await animateText(content, beforeText, response.formatType);
         }
         
         if (!shouldStopTyping) {
-            // Add small pause before codeblock
             await new Promise(resolve => setTimeout(resolve, 300));
             
             // Insert codeblock
             const codeblock = createCodeblock(response.codeblock);
             content.appendChild(codeblock);
             
-            // Auto-scroll
             messagesArea.scrollTop = messagesArea.scrollHeight;
             
-            // Add small pause after codeblock
             await new Promise(resolve => setTimeout(resolve, 200));
             
-            // Text after
             if (afterText) {
                 await animateText(content, afterText, response.formatType);
             }
         }
         
     } else if (response.hasCodeblock && response.codeblockPosition === 'end') {
-        // Text first
         if (!shouldStopTyping) {
             await animateText(content, displayText, response.formatType);
         }
         
         if (!shouldStopTyping) {
-            // Add small pause before codeblock
             await new Promise(resolve => setTimeout(resolve, 300));
             
-            // Then codeblock
             const codeblock = createCodeblock(response.codeblock);
             content.appendChild(codeblock);
             
-            // Auto-scroll
             messagesArea.scrollTop = messagesArea.scrollHeight;
         }
         
     } else {
-        // No codeblock, just text
         await animateText(content, displayText, response.formatType);
     }
     
-    // Add completion indicator
+    // Add completion indicator, need to add better UI for complete message TODO
     messageDiv.classList.add('complete');
     
     isGlorpTyping = false;
     shouldStopTyping = false;
     
-    // Update button back to send icon
     sendIcon.classList.remove('hidden');
     stopIcon.classList.add('hidden');
     messageInput.focus();
@@ -654,14 +629,12 @@ async function handleEditMessage(messageIndex) {
     const message = currentChat.messages[messageIndex];
     if (!message || message.role !== 'user') return;
     
-    // Stop typing if Glorp is currently typing
     if (isGlorpTyping) {
         shouldStopTyping = true;
         isGlorpTyping = false;
         sendIcon.classList.remove('hidden');
         stopIcon.classList.add('hidden');
         
-        // Wait a moment for typing to stop
         await new Promise(resolve => setTimeout(resolve, 100));
     }
     
@@ -669,7 +642,6 @@ async function handleEditMessage(messageIndex) {
     currentChat.messages = currentChat.messages.slice(0, messageIndex);
     await saveChat(currentChat);
     
-    // Reload the UI
     await loadChatMessages(currentChat);
     
     // Update empty state based on remaining messages
@@ -703,52 +675,39 @@ async function handleResendMessage(messageIndex) {
         sendIcon.classList.remove('hidden');
         stopIcon.classList.add('hidden');
         
-        // Wait a moment for typing to stop
         await new Promise(resolve => setTimeout(resolve, 100));
     }
     
-    // Delete this message and all messages after it
     currentChat.messages = currentChat.messages.slice(0, messageIndex);
     await saveChat(currentChat);
     
-    // Reload the UI
     await loadChatMessages(currentChat);
-    
-    // Send the message again
+
     const messageText = message.content;
     
-    // Track which chat this response belongs to
     currentResponseChatId = currentChat.id;
-    
-    // Hide empty state since we're sending a message
+
     emptyState.classList.add('hidden');
     inputContainer.classList.remove('centered');
-    
-    // Save user message to chat and update currentChat reference
+
     currentChat = await addMessageToChat(currentChat.id, {
         role: 'user',
         content: messageText,
         timestamp: Date.now()
     });
     
-    // Display user message
     const userMessage = createMessageElement(messageText, true, currentChat.messages.length - 1);
     messagesArea.appendChild(userMessage);
     
-    // Auto-scroll to bottom
     messagesArea.scrollTop = messagesArea.scrollHeight;
     
-    // Update chat list
     await updateChatList();
     
-    // Small delay before Glorp responds
     await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
-    
-    // Generate and display Glorp response
+
     const response = generateGlorpResponse(messageText);
     await displayGlorpResponse(response);
     
-    // Only save if we're still in the same chat
     if (currentResponseChatId === currentChat.id) {
         currentChat = await addMessageToChat(currentChat.id, {
             role: 'assistant',
@@ -768,7 +727,6 @@ async function handleResendMessage(messageIndex) {
 async function handleShareMessage(messageIndex) {
     if (messageIndex === null || messageIndex === undefined) return;
     
-    // Get all messages up to and including this one
     const messagesToShare = currentChat.messages.slice(0, messageIndex + 1);
     
     // Create share object with same structure as IndexedDB messages
@@ -783,21 +741,19 @@ async function handleShareMessage(messageIndex) {
         }))
     };
     
-    // Encode to URL-safe base64
+    // Encode to URL-safe base64, this still breaks most of the time if its too large, but databses are for losers..
     const jsonString = JSON.stringify(shareData);
     const base64 = btoa(jsonString)
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=/g, '');
     
-    // Create shareable URL
     const shareUrl = `${window.location.origin}${window.location.pathname}?share=${base64}`;
     
     // Copy to clipboard
     try {
         await navigator.clipboard.writeText(shareUrl);
-        
-        // Show feedback
+
         const shareBtn = messagesArea.querySelector(`[data-message-index="${messageIndex}"] .message-action-btn[aria-label="Share conversation"]`);
         if (shareBtn) {
             const originalLabel = shareBtn.getAttribute('aria-label');
@@ -826,12 +782,10 @@ async function loadSharedChat() {
     if (!shareParam) return null;
     
     try {
-        // Decode from URL-safe base64
         let base64 = shareParam
             .replace(/-/g, '+')
             .replace(/_/g, '/');
         
-        // Add padding if needed
         while (base64.length % 4) {
             base64 += '=';
         }
@@ -859,7 +813,6 @@ async function sendMessage() {
         shouldStopTyping = true;
         isGlorpTyping = false;
         
-        // Update button back to send icon
         sendIcon.classList.remove('hidden');
         stopIcon.classList.add('hidden');
         messageInput.focus();
@@ -868,53 +821,41 @@ async function sendMessage() {
     
     const value = messageInput.value.trim();
     if (value) {
-        // Track which chat this response belongs to
         currentResponseChatId = currentChat.id;
         
-        // Animate input down if this is first message
         const isFirstMessage = currentChat.messages.length === 0;
         if (isFirstMessage) {
             inputContainer.classList.remove('centered');
             inputContainer.classList.add('animating-down');
             emptyState.classList.add('hidden');
             
-            // Remove animation class after animation completes
             setTimeout(() => {
                 inputContainer.classList.remove('animating-down');
             }, 500);
         }
         
-        // Save user message to chat and update currentChat reference
         currentChat = await addMessageToChat(currentChat.id, {
             role: 'user',
             content: value,
             timestamp: Date.now()
         });
         
-        // Display user message - now currentChat.messages is up to date
         const userMessage = createMessageElement(value, true, currentChat.messages.length - 1);
         messagesArea.appendChild(userMessage);
         
-        // Clear input
         messageInput.value = '';
         messageInput.style.height = '48px';
         
-        // Auto-scroll to bottom
         messagesArea.scrollTop = messagesArea.scrollHeight;
         
-        // Update chat list (in case title changed)
         await updateChatList();
         
-        // Small delay before Glorp responds
         await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
         
-        // Generate and display Glorp response
         const response = generateGlorpResponse(value);
         await displayGlorpResponse(response);
         
-        // Only save if we're still in the same chat
         if (currentResponseChatId === currentChat.id) {
-            // Save assistant message to chat and update currentChat reference
             currentChat = await addMessageToChat(currentChat.id, {
                 role: 'assistant',
                 content: response.text,
@@ -938,21 +879,18 @@ sidebarOverlay.addEventListener('click', () => {
 });
 
 newChatBtn.addEventListener('click', async (e) => {
-    e.preventDefault(); // Prevent any default button behavior
+    e.preventDefault();
     
-    // If Glorp is typing, save partial response before switching
     if (isGlorpTyping) {
         shouldStopTyping = true;
         isGlorpTyping = false;
         
-        // Get the partial content from the current typing message
         const lastMessage = messagesArea.querySelector('.message.assistant:last-child');
         if (lastMessage && currentResponseChatId === currentChat.id) {
             const content = lastMessage.querySelector('.content');
             if (content) {
                 const partialText = content.textContent.trim();
                 if (partialText) {
-                    // Save the partial message to the current chat
                     await addMessageToChat(currentChat.id, {
                         role: 'assistant',
                         content: partialText,
@@ -962,18 +900,15 @@ newChatBtn.addEventListener('click', async (e) => {
             }
         }
         
-        currentResponseChatId = null; // Clear response tracking
+        currentResponseChatId = null;
         
-        // Update button back to send icon
         sendIcon.classList.remove('hidden');
         stopIcon.classList.add('hidden');
     }
     
-    // Reset mode to normal
     glorpMode = 'normal';
     modeSelect.value = 'normal';
     
-    // Collapse sidebar
     sidebar.classList.remove('open');
     
     currentChat = await createNewChat();
@@ -992,7 +927,6 @@ modeSelect.addEventListener('change', (e) => {
 
 themeToggle.addEventListener('click', toggleTheme);
 
-// Close message actions when clicking outside
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.message')) {
         document.querySelectorAll('.message.actions-visible').forEach(msg => {
@@ -1002,12 +936,11 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('userTyping', (e) => {
-    // Can be used for future features
+    // TODO
 });
 
 document.addEventListener('userStoppedTyping', (e) => {
-    // Can be used for future features
+    // TODO
 });
 
-// Initialize app on load
 initApp();

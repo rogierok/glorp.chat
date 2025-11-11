@@ -5,7 +5,6 @@
 }
 
 :root {
-    /* Light mode colors (default) */
     --bg-primary: #ffffff;
     --bg-secondary: #f9f9f9;
     --bg-tertiary: #f4f4f4;
@@ -33,7 +32,6 @@
 }
 
 body.dark-mode {
-    /* Dark mode colors */
     --bg-primary: #1a1a1a;
     --bg-secondary: #2a2a2a;
     --bg-tertiary: #333333;
@@ -60,7 +58,6 @@ body.dark-mode {
     --overlay-bg: rgba(0, 0, 0, 0.7);
 }
 
-/* Visually hidden but accessible to screen readers */
 .visually-hidden {
     position: absolute;
     width: 1px;
@@ -83,7 +80,6 @@ body {
     transition: background 0.3s, color 0.3s;
 }
 
-/* Sidebar */
 .sidebar {
     width: 260px;
     background: var(--sidebar-bg);
@@ -303,7 +299,6 @@ body.dark-mode .sidebar-toggle img {
     position: relative;
 }
 
-/* Top Controls - Mode Selector and Theme Toggle */
 .top-controls {
     position: fixed;
     top: 16px;
@@ -521,7 +516,7 @@ body.dark-mode #sendBtn .btn-icon {
     opacity: 0;
     animation-fill-mode: forwards;
     position: relative;
-    padding-bottom: 40px; /* Add space for buttons */
+    padding-bottom: 40px; /* hard coded, we need better way to add spacing on mobile this is a yikes, TODO */
 }
 
 @keyframes fadeIn {
@@ -540,7 +535,6 @@ body.dark-mode #sendBtn .btn-icon {
     margin-left: auto;
 }
 
-/* Message action buttons */
 .message-actions {
     position: absolute;
     bottom: 8px;
@@ -626,7 +620,6 @@ body.dark-mode .message-action-btn img {
     transition: border-color 0.3s ease;
 }
 
-/* Typing indicator */
 .typing-indicator {
     display: inline-block;
     width: 8px;
@@ -642,7 +635,6 @@ body.dark-mode .message-action-btn img {
     50% { opacity: 1; }
 }
 
-/* Codeblock styling */
 .codeblock-wrapper {
     margin: 12px 0;
     position: relative;
@@ -725,7 +717,6 @@ body.dark-mode .message-action-btn img {
     white-space: pre;
 }
 
-/* Code syntax highlighting colors */
 .code-keyword {
     color: #c586c0;
 }
@@ -750,7 +741,6 @@ body.dark-mode .message-action-btn img {
     color: #ffd700;
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
     .sidebar {
         width: 100%;
@@ -774,7 +764,7 @@ body.dark-mode .message-action-btn img {
     }
     
     #messageInput {
-        font-size: 16px; /* Prevents zoom on iOS */
+        font-size: 16px;
     }
     
     .empty-title {
@@ -782,7 +772,6 @@ body.dark-mode .message-action-btn img {
         padding: 0 20px;
     }
     
-    /* Show message actions on mobile with tap */
     .message .message-actions {
         opacity: 0;
     }

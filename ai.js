@@ -1,6 +1,6 @@
 // Glorp AI Engine - Pure Nonsense Generator
 
-// Configuration table for response styling based on keywords
+// Configuration table for response styling based on keywords, NEED THIS IN AN CONFIG FILE INSTEAD, AND MUCH MORE COMPLETE AND LOGICAL
 const STYLE_CONFIG = {
     // Programming related keywords (ALWAYS show codeblock)
     'program': { requireCodeblock: true, codeblockSize: 'large', wordCountMultiplier: 0.9, historyMultiplier: 1.5, formatType: 'code' },
@@ -47,7 +47,7 @@ const CODEBLOCK_SIZES = {
 // Punctuation for natural-looking text
 const PUNCTUATION = ['.', '.', '.', '!', '?', ','];
 const SENTENCE_ENDERS = ['.', '.', '!', '?'];
-const HAPPY_ENDERS = ['!', '!!', '!!!'];
+const HAPPY_ENDERS = ['!', '!!', '!!!', '. :)', '!! :)', '!!! :)', '. :D', '!! :D', '!!! :D'];
 
 // Vowels and consonants for word generation
 const VOWELS = ['a', 'e', 'i', 'o', 'u', 'oo', 'ee', 'aa', 'orp', 'oink'];
@@ -62,12 +62,12 @@ let chatLengthMultiplier = 1.0;
 let messageCount = 0;
 let messageHistory = [];
 let happyEndingMultiplier = 1.0;
-let lastResponseStyle = null; // Track the style used for the last response
+let lastResponseStyle = null; // Track the style used for the last response for things like fix and create
 
 /**
  * Generate a single nonsense word
  */
-function generateNonsenseWord() {
+function generateNonsenseWord() { // NEED TO ADD A CURSE WORD FILTER HERE LATER TODO
     const syllables = Math.floor(Math.random() * 3) + 1; // 1-3 syllables
     let word = '';
     
@@ -174,7 +174,7 @@ function analyzeInputStyle(message) {
     let hasThanksKeyword = false;
     let hasNonThanksKeyword = false;
     
-    // Find the most important keyword in current message (last one found)
+    // Find the most important keyword in current message (last one found) TODO make this based on hystory to find correct context to use..
     for (const [keyword, config] of Object.entries(STYLE_CONFIG)) {
         if (lowerMessage.includes(keyword)) {
             const index = lowerMessage.indexOf(keyword);
@@ -193,11 +193,9 @@ function analyzeInputStyle(message) {
         }
     }
     
-    // If keyword found in current message
     if (bestMatch) {
         // If we have both thanks and non-thanks keywords, ignore thanks
         if (bestMatch.config.formatType === 'thanks' && hasNonThanksKeyword) {
-            // Find the best non-thanks keyword instead
             let nonThanksMatch = null;
             let nonThanksPriority = -1;
             
@@ -218,10 +216,8 @@ function analyzeInputStyle(message) {
         
         // Check if it's an inherit keyword
         if (bestMatch.config.inheritPrevious) {
-            // Get the style from the previous message
             const previousStyle = getPreviousMessageStyle();
             if (previousStyle) {
-                // Apply the multiplier from the inherit keyword
                 return {
                     ...previousStyle,
                     wordCountMultiplier: (previousStyle.wordCountMultiplier || 1.0) * bestMatch.config.wordCountMultiplier
@@ -240,7 +236,7 @@ function analyzeInputStyle(message) {
         return historyMatch;
     }
     
-    // No keywords found - return default (no special styling)
+    // No keywords found
     return {
         requireCodeblock: false,
         codeblockSize: null,
@@ -318,21 +314,16 @@ function calculateWordCount(inputMessage, styleConfig) {
     // Input length factor (longer input = longer response, but capped at 2x)
     const inputWords = inputMessage.trim().split(/\s+/).length;
     const inputFactor = 1 + Math.min(inputWords / 30, 1.0); // Max 2x from input length
-    
-    // Apply style multiplier
+
     const styleMultiplier = styleConfig.wordCountMultiplier || 1.0;
     
-    // Chat length grows very slowly
     const chatFactor = 1 + (chatLengthMultiplier - 1) * 0.2;
     
-    // Combine all factors
     const totalMultiplier = inputFactor * styleMultiplier * chatFactor;
     
-    // Calculate range
     const min = Math.floor(baseMin * totalMultiplier);
     const max = Math.floor(baseMax * totalMultiplier);
     
-    // Return random count within range
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
@@ -347,7 +338,6 @@ function formatWordsAsText(words, formatType, isHappyEnding = false) {
     
     // Format based on type
     if (formatType === 'list') {
-        // Create bullet point list with text before and after
         const itemCount = Math.min(Math.floor(words.length / 5) + 3, 7);
         const wordsForList = Math.floor(words.length * 0.6); // 60% for list items
         const wordsBeforeList = Math.floor((words.length - wordsForList) * 0.5);
@@ -401,7 +391,6 @@ function formatWordsAsText(words, formatType, isHappyEnding = false) {
             formattedText += beforeWords.join(' ') + '.';
         }
         
-        // Add TWO line breaks before steps (one enter)
         formattedText += '\n\n';
         
         // Steps
@@ -436,14 +425,11 @@ function formatWordsAsText(words, formatType, isHappyEnding = false) {
         for (let i = 0; i < words.length; i++) {
             currentSentence.push(words[i]);
             
-            // Random sentence length (4-12 words)
             const sentenceLength = 4 + Math.floor(Math.random() * 9);
             
             if (currentSentence.length >= sentenceLength || i === words.length - 1) {
-                // Capitalize first word
                 currentSentence[0] = currentSentence[0].charAt(0).toUpperCase() + currentSentence[0].slice(1);
                 
-                // Add punctuation
                 let punctuation;
                 if (i === words.length - 1 && isHappyEnding) {
                     punctuation = HAPPY_ENDERS[Math.floor(Math.random() * HAPPY_ENDERS.length)];
@@ -485,13 +471,11 @@ function generateGlorpResponse(inputMessage) {
     // Store message in history
     messageHistory.push(inputMessage);
     if (messageHistory.length > 10) {
-        messageHistory.shift(); // Keep only last 10 messages
+        messageHistory.shift(); // Keep only last 10 messages, TODO maybe based on bytes decided text length so we can still fit it in an URL
     }
     
-    // Analyze input for styling
     const styleConfig = analyzeInputStyle(inputMessage);
     
-    // Store the style used for this response (for inherit keywords)
     lastResponseStyle = styleConfig;
     
     // Update happy ending multiplier if it's a thank message
@@ -502,19 +486,17 @@ function generateGlorpResponse(inputMessage) {
     // Calculate word count
     const wordCount = calculateWordCount(inputMessage, styleConfig);
     
-    // Generate nonsense words
+    // Generate words
     const words = [];
     for (let i = 0; i < wordCount; i++) {
         words.push(generateNonsenseWord());
     }
-    
-    // Determine if we should include a codeblock (hard-coded for code keywords)
+
     const shouldIncludeCode = styleConfig.requireCodeblock === true;
     
     // Check for happy ending (that's what she said)
     const isHappyEnding = happyEndingMultiplier > 1.2 || styleConfig.formatType === 'thanks';
     
-    // Format the words into proper text
     const formattedText = formatWordsAsText(words, styleConfig.formatType, isHappyEnding);
     
     let response = {
@@ -567,15 +549,13 @@ function getTypingDelays(text, formatType) {
     const delays = [];
     
     for (let i = 0; i < words.length; i++) {
-        // Base delay between 30-80ms
         let delay = 30 + Math.random() * 50;
         
-        // Random pauses (10% chance of 200-500ms pause)
         if (Math.random() < 0.1) {
             delay = 200 + Math.random() * 300;
         }
         
-        // Occasional longer pauses (3% chance of 500-1000ms)
+        // Occasional longer pauses TODO, longer for thinking mode
         if (Math.random() < 0.03) {
             delay = 500 + Math.random() * 500;
         }

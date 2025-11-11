@@ -1,5 +1,3 @@
-// IndexedDB Storage for Glorp Chat
-
 const DB_NAME = 'Glorp';
 const DB_VERSION = 1; // meh
 const CHAT_STORE = 'chats';
@@ -42,6 +40,8 @@ async function initDB() {
  */
 function generateChatId() {
     return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    // Example: chat_1633036800000_abcd12345
+    //! could be a better way to handle this but if it works it works.
 }
 
 /**
@@ -50,7 +50,7 @@ function generateChatId() {
 async function createNewChat() {
     const chat = {
         id: generateChatId(),
-        title: 'New Glorp',
+        title: 'New Glorp', // If you see New Glorp as title you something messed up..
         messages: [],
         timestamp: Date.now(),
         lastUpdated: Date.now()
@@ -72,7 +72,7 @@ async function saveChat(chat) {
         const request = store.put(chat);
         
         request.onsuccess = () => resolve(chat);
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(request.error); // TODO add error handling with toasts
     });
 }
 
@@ -134,7 +134,7 @@ async function addMessageToChat(chatId, message) {
     chat.messages.push(message);
     
     // Update title based on first user message
-    if (chat.messages.length === 1 && message.role === 'user') {
+    if (chat.messages.length === 1 && message.role === 'user') { // not needed check, first message is always user, but just in case
         chat.title = message.content.substring(0, 30) + (message.content.length > 30 ? '...' : '');
     }
     
